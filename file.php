@@ -2532,7 +2532,7 @@ function fm_generate_explorer_html_recursive_toplevel($scan_abs_path, $base_root
     foreach ($temp_files as $file_name => $file_fm_path) {
         $file_icon = fm_get_file_icon_class($base_root_path . '/' . $file_fm_path);
         $files_html .= '<li><i class="' . $file_icon . '"></i> ';
-        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '">' . fm_enc($file_name) . '</a>';
+        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco">' . fm_enc($file_name) . '</a>';
         $files_html .= '</li>';
     }
     
