@@ -932,6 +932,22 @@ if (isset($_GET['dl'], $_POST['token'])) {
         // Call the download function
         fm_download_file($path . '/' . $dl, $dl, 1024); // Download with a buffer size of 1024 bytes
         exit;
+    } else if ($dl != '' && is_dir($path . '/' . $dl)) {
+        chdir($path);
+
+        // zip the directory
+        $zipname = sys_get_temp_dir() .'/'. $dl;
+        $zipper = new FM_Zipper();
+        $res = $zipper->create($zipname, $dl);
+
+        if ($res) {
+            // download the zip file and delete it afterwards
+            fm_download_file($zipname, $dl . '.zip', 1024);
+            unlink($zipname);
+        } else {
+            fm_set_msg(lng('Error while creating Archive'), 'error');
+        }
+        exit;
     } else {
         // Handle the case where the file is not found
         fm_set_msg(lng('File not found'), 'error');
@@ -957,6 +973,7 @@ if (!empty($_FILES) && !FM_READONLY) {
     $chunkIndex = $_POST['dzchunkindex'];
     $chunkTotal = $_POST['dztotalchunkcount'];
     $fullPathInput = fm_clean_path($_REQUEST['fullpath']);
+    $overwrite_files = ($_REQUEST['overwrite_files'] ?? 'N');
 
     $f = $_FILES;
     $path = FM_ROOT_PATH;
@@ -1047,7 +1064,11 @@ if (!empty($_FILES) && !FM_READONLY) {
                 if ($chunkIndex == $chunkTotal - 1) {
                     if (file_exists($fullPath)) {
                         $ext_1 = $ext ? '.' . $ext : '';
-                        $fullPathTarget = $path . '/' . basename($fullPathInput, $ext_1) . '_' . date('ymdHis') . $ext_1;
+                        if ($overwrite_files == 'Y') {
+                            $fullPathTarget = $path . '/' . basename($fullPathInput, $ext_1) . $ext_1;
+                        } else {
+                            $fullPathTarget = $path . '/' . basename($fullPathInput, $ext_1) .'_'. date('ymdHis'). $ext_1;
+                        }
                     } else {
                         $fullPathTarget = $fullPath;
                     }
@@ -1394,11 +1415,12 @@ if (isset($_GET['upload']) && !FM_READONLY) {
                     <a href="?p=<?php echo FM_PATH ?>" class="float-right"><i class="fa fa-chevron-circle-left go-back"></i> <?php echo lng('Back') ?></a>
                     <strong><?php echo lng('DestinationFolder') ?></strong>: <?php echo fm_enc(fm_convert_win(FM_PATH)) ?>
                 </p>
-
+                <p><label><input type="checkbox" name="overwrite_files" value="Y" onChange="document.getElementById('fileUploader').overwrite_files.value = (this.checked) ? this.value : '';">&nbsp;Overwrite existing files?</label></p>
                 <form action="<?php echo htmlspecialchars(FM_SELF_URL) . '?p=' . fm_enc(FM_PATH) ?>" class="dropzone card-tabs-container" id="fileUploader" enctype="multipart/form-data">
                     <input type="hidden" name="p" value="<?php echo fm_enc(FM_PATH) ?>">
                     <input type="hidden" name="fullpath" id="fullpath" value="<?php echo fm_enc(FM_PATH) ?>">
                     <input type="hidden" name="token" value="<?php echo $_SESSION['token']; ?>">
+                    <input type="hidden" name="overwrite_files" value="">
                     <div class="fallback">
                         <input name="file" type="file" multiple />
                     </div>
@@ -2232,6 +2254,8 @@ $all_files_size = 0;
                             <a title="<?php echo lng('CopyTo') ?>..." href="?p=&amp;copy=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="fa fa-files-o" aria-hidden="true"></i></a>
                         <?php endif; ?>
                         <a title="<?php echo lng('DirectLink') ?>" href="<?php echo fm_enc(FM_ROOT_URL . (FM_PATH != '' ? '/' . FM_PATH : '') . '/' . $f . '/') ?>" target="_blank"><i class="fa fa-link" aria-hidden="true"></i></a>
+                        <a title="<?php echo lng('Download') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;dl=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, 1211, '<?php echo lng('Download'); ?>','<?php echo urlencode($f); ?>', this.href);"><i class="fa fa-download"></i></a>
+
                     </td>
                 </tr>
             <?php
@@ -5644,5 +5668,5 @@ function fm_show_header_login()
         else if (isset($tr['en'][$txt])) return fm_enc($tr['en'][$txt]);
         else return "$txt";
     }
-
+    //brok
 ?>
