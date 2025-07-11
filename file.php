@@ -5447,7 +5447,7 @@ function fm_show_header_login()
                         language: '<?php echo $language; ?>',
                         theme: 'vs-dark', // Default theme
                         automaticLayout: true,
-                        wordWrap: 'on' // Default word wrap
+                        wordWrap: 'off' // Default word wrap
                     });
 
                     // Remove previous Monaco Ctrl+S bindings if any
