@@ -2447,19 +2447,17 @@ function fm_generate_explorer_html_recursive($scan_abs_path, $base_root_path) {
     uksort($temp_files, 'strnatcasecmp');
 
     foreach ($temp_folders as $folder_name => $folder_paths) {
-        $folders_html .= '<li data-path="' . urlencode($folder_paths['fm_path']) . '">';
+        $folders_html .= '<li>';
         $folders_html .= '<span class="folder-toggle"><i class="fa fa-plus-square-o"></i></span> ';
-        $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '">' . fm_enc($folder_name) . '</a>';
-        // Recursive call
+        $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '" data-p="' . urlencode($folder_paths['fm_path']) . '" data-filename="' . fm_enc($folder_name) . '">' . fm_enc($folder_name) . '</a>';
         $folders_html .= fm_generate_explorer_html_recursive($folder_paths['abs_path'], $base_root_path);
         $folders_html .= '</li>';
     }
-    
+
     foreach ($temp_files as $file_name => $file_fm_path) {
-        // $current_fm_path is the directory containing these files/folders
         $file_icon = fm_get_file_icon_class($base_root_path . '/' . $file_fm_path);
-        $files_html .= '<li data-path="' . urlencode($file_fm_path) . '"><i class="' . $file_icon . '"></i> ';
-        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco">' . fm_enc($file_name) . '</a>';
+        $files_html .= '<li><i class="' . $file_icon . '"></i> ';
+        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco" data-p="' . urlencode($current_fm_path) . '" data-filename="' . fm_enc($file_name) . '">' . fm_enc($file_name) . '</a>';
         $files_html .= '</li>';
     }
     
@@ -2524,15 +2522,15 @@ function fm_generate_explorer_html_recursive_toplevel($scan_abs_path, $base_root
     foreach ($temp_folders as $folder_name => $folder_paths) {
         $folders_html .= '<li>';
         $folders_html .= '<span class="folder-toggle"><i class="fa fa-plus-square-o"></i></span> ';
-        $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '">' . fm_enc($folder_name) . '</a>';
+        $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '" data-p="' . urlencode($folder_paths['fm_path']) . '" data-filename="' . fm_enc($folder_name) . '">' . fm_enc($folder_name) . '</a>';
         $folders_html .= fm_generate_explorer_html_recursive($folder_paths['abs_path'], $base_root_path); // This will return a sub-ul
         $folders_html .= '</li>';
     }
-    
+
     foreach ($temp_files as $file_name => $file_fm_path) {
         $file_icon = fm_get_file_icon_class($base_root_path . '/' . $file_fm_path);
         $files_html .= '<li><i class="' . $file_icon . '"></i> ';
-        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco">' . fm_enc($file_name) . '</a>';
+        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco" data-p="' . urlencode($current_fm_path) . '" data-filename="' . fm_enc($file_name) . '">' . fm_enc($file_name) . '</a>';
         $files_html .= '</li>';
     }
     
@@ -5140,6 +5138,7 @@ function fm_show_header_login()
         <?php endif; ?>
         <?php print_external('js-monaco'); ?>
         <script>
+            $(document).ready(function() {
             function template(html, options) {
                 var re = /<\%([^\%>]+)?\%>/g,
                     reExp = /(^( )?(if|for|else|switch|case|break|{|}))(.*)?/g,
@@ -5436,7 +5435,6 @@ function fm_show_header_login()
             }(jQuery);
 
             // Dom Ready Events
-            $(document).ready(function() {
                 var mainTable; // Ensure mainTable is declared in a scope accessible by both init and search binding
 
                 function initializeDataTableAndSearch() {
@@ -5490,7 +5488,6 @@ function fm_show_header_login()
                     $(".fm-upload-wrapper .card-tabs-container").addClass('hidden');
                     $(target).removeClass('hidden');
                 });
-            });
 
             // File Explorer Toggle
             $(document).on('click', '.folder-toggle', function(e) {
@@ -5509,95 +5506,58 @@ function fm_show_header_login()
             });
 
             // Context menu for file explorer
-            $(document).on('contextmenu', '#file-explorer-container li', function(e) {
+            $(document).on('contextmenu', '#file-explorer-container li a', function(e) {
                 e.preventDefault();
                 var $contextMenu = $('#context-menu');
-                $contextMenu.css({
-                    display: 'block',
-                    left: e.pageX,
-                    top: e.pageY
-                });
-                // Store the path of the right-clicked item
-                var path = $(this).data('path');
-                $contextMenu.data('path', path);
-            });
-
-            $(document).on('click', function() {
-                $('#context-menu').hide();
-            });
-
-            // Context menu for file explorer
-            $(document).on('contextmenu', '#file-explorer-container li', function(e) {
-                e.preventDefault();
-                var $contextMenu = $('#context-menu');
-                $contextMenu.css({
-                    display: 'block',
-                    left: e.pageX,
-                    top: e.pageY
-                });
-                // Store the path of the right-clicked item
-                var path = $(this).data('path');
-                $contextMenu.data('path', path);
-            });
-
-            $(document).on('click', function() {
-                $('#context-menu').hide();
-            });
-
-            // Context menu for file explorer
-            $(document).on('contextmenu', '#file-explorer-container a', function(e) {
-                e.preventDefault();
-                var $contextMenu = $('#context-menu');
-                $contextMenu.css({
-                    display: 'block',
-                    left: e.pageX,
-                    top: e.pageY
-                });
-                // Store the path of the right-clicked item
                 var path = $(this).attr('href');
+
+                // Set data attributes for the context menu
                 $contextMenu.data('path', path);
+                $contextMenu.data('p', $(this).data('p'));
+                $contextMenu.data('filename', $(this).data('filename'));
+
+                // Show the context menu
+                $contextMenu.css({
+                    display: 'block',
+                    left: e.pageX,
+                    top: e.pageY
+                });
             });
 
+            // Hide context menu on click outside
             $(document).on('click', function() {
                 $('#context-menu').hide();
             });
 
+            // Context menu actions
             $('#context-menu a').on('click', function(e) {
                 e.preventDefault();
                 var action = $(this).data('action');
-                var path = $('#context-menu').data('path');
-                var filename = path.substring(path.lastIndexOf('/') + 1);
-                var p = path.substring(0, path.lastIndexOf('/'));
+                var contextMenu = $('#context-menu');
+                var path = contextMenu.data('path');
+                var p = contextMenu.data('p');
+                var filename = contextMenu.data('filename');
+
                 // Perform action based on the clicked item
                 switch (action) {
                     case 'download':
-                        var url = '?p=' + p + '&dl=' + filename;
-                        var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                        var url = `?p=${p}&dl=${filename}`;
+                        var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
                         $('body').append(form);
                         form.submit().remove();
                         break;
                     case 'delete':
-                        confirmDailog(e, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>', decodeURIComponent(filename), function() {
-                            var url = '?p=' + p + '&del=' + filename;
-                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
-                            $('body').append(form);
-                            form.submit().remove();
-                        });
+                        var deleteUrl = `?p=${p}&del=${filename}`;
+                        confirmDailog(e, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>', filename, deleteUrl);
                         break;
                     case 'rename':
-                        var newName = prompt('Enter new name', decodeURIComponent(filename));
-                        if (newName && newName != decodeURIComponent(filename)) {
-                            var url = '?p=' + p + '&rename=' + filename + '&to=' + encodeURIComponent(newName);
-                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"><input type="hidden" name="rename_from" value="' + decodeURIComponent(filename) + '"><input type="hidden" name="rename_to" value="' + newName + '"></form>');
-                            $('body').append(form);
-                            form.submit().remove();
-                        }
+                        rename(p, filename);
                         break;
                     case 'new-file':
                         var newName = prompt('Enter new file name');
                         if (newName) {
-                            var url = '?p=' + p + '&newfilename=' + encodeURIComponent(newName) + '&newfile=file';
-                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                            var url = `?p=${p}&newfilename=${encodeURIComponent(newName)}&newfile=file`;
+                            var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
                             $('body').append(form);
                             form.submit().remove();
                         }
@@ -5605,8 +5565,8 @@ function fm_show_header_login()
                     case 'new-folder':
                         var newName = prompt('Enter new folder name');
                         if (newName) {
-                            var url = '?p=' + p + '&newfilename=' + encodeURIComponent(newName) + '&newfile=folder';
-                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                            var url = `?p=${p}&newfilename=${encodeURIComponent(newName)}&newfile=folder`;
+                            var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
                             $('body').append(form);
                             form.submit().remove();
                         }
@@ -5633,6 +5593,7 @@ function fm_show_header_login()
                         break;
                 }
                 $('#context-menu').hide();
+            });
             });
         </script>
 
