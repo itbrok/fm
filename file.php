@@ -2447,7 +2447,7 @@ function fm_generate_explorer_html_recursive($scan_abs_path, $base_root_path) {
     uksort($temp_files, 'strnatcasecmp');
 
     foreach ($temp_folders as $folder_name => $folder_paths) {
-        $folders_html .= '<li>';
+        $folders_html .= '<li data-path="' . urlencode($folder_paths['fm_path']) . '">';
         $folders_html .= '<span class="folder-toggle"><i class="fa fa-plus-square-o"></i></span> ';
         $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '">' . fm_enc($folder_name) . '</a>';
         // Recursive call
@@ -2458,7 +2458,7 @@ function fm_generate_explorer_html_recursive($scan_abs_path, $base_root_path) {
     foreach ($temp_files as $file_name => $file_fm_path) {
         // $current_fm_path is the directory containing these files/folders
         $file_icon = fm_get_file_icon_class($base_root_path . '/' . $file_fm_path);
-        $files_html .= '<li><i class="' . $file_icon . '"></i> ';
+        $files_html .= '<li data-path="' . urlencode($file_fm_path) . '"><i class="' . $file_icon . '"></i> ';
         $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco">' . fm_enc($file_name) . '</a>';
         $files_html .= '</li>';
     }
@@ -4828,6 +4828,105 @@ function fm_show_header_login()
             }
             /* Optional: Deeper indentation for more deeply nested lists if desired */
             /* #file-explorer-container ul ul.sub-explorer { padding-left: 20px; } */
+
+            #context-menu {
+                background-color: #252526;
+                border: 1px solid #3c3c3c;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                color: #cccccc;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+
+            #context-menu ul {
+                padding: 4px 0;
+                margin: 0;
+            }
+
+            #context-menu li {
+                padding: 0;
+            }
+
+            #context-menu li a {
+                color: #cccccc;
+                padding: 6px 12px;
+                display: block;
+            }
+
+            #context-menu li a:hover {
+                background-color: #094771;
+                color: #ffffff;
+            }
+
+            #context-menu li a i {
+                margin-right: 10px;
+            }
+
+            #context-menu {
+                background-color: #252526;
+                border: 1px solid #3c3c3c;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                color: #cccccc;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+
+            #context-menu ul {
+                padding: 4px 0;
+                margin: 0;
+            }
+
+            #context-menu li {
+                padding: 0;
+            }
+
+            #context-menu li a {
+                color: #cccccc;
+                padding: 6px 12px;
+                display: block;
+            }
+
+            #context-menu li a:hover {
+                background-color: #094771;
+                color: #ffffff;
+            }
+
+            #context-menu li a i {
+                margin-right: 10px;
+            }
+
+            #context-menu {
+                background-color: #252526;
+                border: 1px solid #3c3c3c;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                color: #cccccc;
+                font-size: 13px;
+                border-radius: 4px;
+            }
+
+            #context-menu ul {
+                padding: 4px 0;
+                margin: 0;
+            }
+
+            #context-menu li {
+                padding: 0;
+            }
+
+            #context-menu li a {
+                color: #cccccc;
+                padding: 6px 12px;
+                display: block;
+            }
+
+            #context-menu li a:hover {
+                background-color: #094771;
+                color: #ffffff;
+            }
+
+            #context-menu li a i {
+                margin-right: 10px;
+            }
         </style>
         <?php
         if (FM_THEME == "dark"): ?>
@@ -5408,6 +5507,133 @@ function fm_show_header_login()
                     $icon.removeClass('fa-caret-down').addClass('fa-caret-right');
                 }
             });
+
+            // Context menu for file explorer
+            $(document).on('contextmenu', '#file-explorer-container li', function(e) {
+                e.preventDefault();
+                var $contextMenu = $('#context-menu');
+                $contextMenu.css({
+                    display: 'block',
+                    left: e.pageX,
+                    top: e.pageY
+                });
+                // Store the path of the right-clicked item
+                var path = $(this).data('path');
+                $contextMenu.data('path', path);
+            });
+
+            $(document).on('click', function() {
+                $('#context-menu').hide();
+            });
+
+            // Context menu for file explorer
+            $(document).on('contextmenu', '#file-explorer-container li', function(e) {
+                e.preventDefault();
+                var $contextMenu = $('#context-menu');
+                $contextMenu.css({
+                    display: 'block',
+                    left: e.pageX,
+                    top: e.pageY
+                });
+                // Store the path of the right-clicked item
+                var path = $(this).data('path');
+                $contextMenu.data('path', path);
+            });
+
+            $(document).on('click', function() {
+                $('#context-menu').hide();
+            });
+
+            // Context menu for file explorer
+            $(document).on('contextmenu', '#file-explorer-container a', function(e) {
+                e.preventDefault();
+                var $contextMenu = $('#context-menu');
+                $contextMenu.css({
+                    display: 'block',
+                    left: e.pageX,
+                    top: e.pageY
+                });
+                // Store the path of the right-clicked item
+                var path = $(this).attr('href');
+                $contextMenu.data('path', path);
+            });
+
+            $(document).on('click', function() {
+                $('#context-menu').hide();
+            });
+
+            $('#context-menu a').on('click', function(e) {
+                e.preventDefault();
+                var action = $(this).data('action');
+                var path = $('#context-menu').data('path');
+                var filename = path.substring(path.lastIndexOf('/') + 1);
+                var p = path.substring(0, path.lastIndexOf('/'));
+                // Perform action based on the clicked item
+                switch (action) {
+                    case 'download':
+                        var url = '?p=' + p + '&dl=' + filename;
+                        var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                        $('body').append(form);
+                        form.submit().remove();
+                        break;
+                    case 'delete':
+                        confirmDailog(e, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>', decodeURIComponent(filename), function() {
+                            var url = '?p=' + p + '&del=' + filename;
+                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                            $('body').append(form);
+                            form.submit().remove();
+                        });
+                        break;
+                    case 'rename':
+                        var newName = prompt('Enter new name', decodeURIComponent(filename));
+                        if (newName && newName != decodeURIComponent(filename)) {
+                            var url = '?p=' + p + '&rename=' + filename + '&to=' + encodeURIComponent(newName);
+                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"><input type="hidden" name="rename_from" value="' + decodeURIComponent(filename) + '"><input type="hidden" name="rename_to" value="' + newName + '"></form>');
+                            $('body').append(form);
+                            form.submit().remove();
+                        }
+                        break;
+                    case 'new-file':
+                        var newName = prompt('Enter new file name');
+                        if (newName) {
+                            var url = '?p=' + p + '&newfilename=' + encodeURIComponent(newName) + '&newfile=file';
+                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                            $('body').append(form);
+                            form.submit().remove();
+                        }
+                        break;
+                    case 'new-folder':
+                        var newName = prompt('Enter new folder name');
+                        if (newName) {
+                            var url = '?p=' + p + '&newfilename=' + encodeURIComponent(newName) + '&newfile=folder';
+                            var form = $('<form action="' + url + '" method="post"><input type="hidden" name="token" value="' + window.csrf + '"></form>');
+                            $('body').append(form);
+                            form.submit().remove();
+                        }
+                        break;
+                    case 'copy-path':
+                        var tempInput = document.createElement("input");
+                        tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+                        tempInput.value = "<?php echo FM_ROOT_PATH ?>" + decodeURIComponent(path);
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(tempInput);
+                        toast('Path copied to clipboard');
+                        break;
+                    case 'copy-relative-path':
+                        var tempInput = document.createElement("input");
+                        tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+                        tempInput.value = decodeURIComponent(path);
+                        document.body.appendChild(tempInput);
+                        tempInput.select();
+                        document.execCommand("copy");
+                        document.body.removeChild(tempInput);
+                        toast('Relative path copied to clipboard');
+                        break;
+                }
+                $('#context-menu').hide();
+            });
         </script>
 
         <?php if (isset($_GET['edit']) && isset($_GET['env']) && $_GET['env'] == 'monaco' && FM_EDIT_FILE && !FM_READONLY):
@@ -5534,6 +5760,19 @@ function fm_show_header_login()
             </script>
         <?php endif; ?>
         <div id="snackbar"></div>
+        <div id="context-menu" style="display: none; position: absolute; z-index: 1000;" data-bs-theme="<?php echo FM_THEME; ?>">
+            <div class="card" style="min-width: 150px;">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item"><a href="#" data-action="download"><i class="fa fa-download"></i> Download</a></li>
+                    <li class="list-group-item"><a href="#" data-action="delete"><i class="fa fa-trash"></i> Delete</a></li>
+                    <li class="list-group-item"><a href="#" data-action="rename"><i class="fa fa-pencil"></i> Rename</a></li>
+                    <li class="list-group-item"><a href="#" data-action="new-file"><i class="fa fa-file"></i> New File</a></li>
+                    <li class="list-group-item"><a href="#" data-action="new-folder"><i class="fa fa-folder"></i> New Folder</a></li>
+                    <li class="list-group-item"><a href="#" data-action="copy-path"><i class="fa fa-copy"></i> Copy Path</a></li>
+                    <li class="list-group-item"><a href="#" data-action="copy-relative-path"><i class="fa fa-copy"></i> Copy Relative Path</a></li>
+                </ul>
+            </div>
+        </div>
     </body>
 
     </html>
