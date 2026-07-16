@@ -60,7 +60,8 @@ $default_timezone = 'Etc/UTC'; // UTC
 // Root path for file manager
 // use absolute path of directory i.e: '/var/www/folder' or $_SERVER['DOCUMENT_ROOT'].'/folder'
 //make sure update $root_url in next section
-$root_path = dirname($_SERVER['DOCUMENT_ROOT']);
+$root_path = $_SERVER['DOCUMENT_ROOT'];
+//$root_path = '/home/u680708298/domains/';
 
 // Root url for links in file manager.Relative to $http_host. Variants: '', 'path/to/subfolder'
 // Will not working if $root_path will be outside of server document root
@@ -5138,7 +5139,52 @@ function fm_show_header_login()
         <?php endif; ?>
         <?php print_external('js-monaco'); ?>
         <script>
-            $(document).ready(function() {
+            // Save file
+            function edit_save(e, t) {
+                var n = "monaco" == t ? monacoEditor.getValue() : document.getElementById("normal-editor").value;
+                if (typeof n !== 'undefined' && n !== null) {
+                    if (true) {
+                        var data = {
+                            ajax: true,
+                            content: n,
+                            type: 'save',
+                            token: window.csrf
+                        };
+
+                        $.ajax({
+                            type: "POST",
+                            url: window.location,
+                            data: JSON.stringify(data),
+                            contentType: "application/json; charset=utf-8",
+                            success: function(mes) {
+                                toast("Saved Successfully");
+                                window.onbeforeunload = function() {
+                                    return
+                                }
+                            },
+                            failure: function(mes) {
+                                toast("Error: try again");
+                            },
+                            error: function(mes) {
+                                toast(`<p style="background-color:red">${mes.responseText}</p>`);
+                            }
+                        });
+                    } else {
+                        var a = document.createElement("form");
+                        a.setAttribute("method", "POST"), a.setAttribute("action", "");
+                        var o = document.createElement("textarea");
+                        o.setAttribute("type", "textarea"), o.setAttribute("name", "savedata");
+                        let cx = document.createElement("input");
+                        cx.setAttribute("type", "hidden");
+                        cx.setAttribute("name", "token");
+                        cx.setAttribute("value", window.csrf);
+                        var c = document.createTextNode(n);
+                        o.appendChild(c), a.appendChild(o), a.appendChild(cx), document.body.appendChild(a), a.submit()
+                    }
+                }
+            }
+
+            
             function template(html, options) {
                 var re = /<\%([^\%>]+)?\%>/g,
                     reExp = /(^( )?(if|for|else|switch|case|break|{|}))(.*)?/g,
@@ -5156,6 +5202,31 @@ function fm_show_header_login()
                 add(html.substr(cursor, html.length - cursor));
                 code += 'return r.join("");';
                 return new Function(code.replace(/[\r\t\n]/g, '')).apply(options)
+            }
+
+            function rename_without_redirect(p, f) {
+                var newName = prompt('Enter new name for ' + f, f);
+                if (newName && newName !== f) {
+                    var data = {
+                        ajax: true,
+                        rename_from: f,
+                        rename_to: newName,
+                        p: p,
+                        token: window.csrf
+                    };
+                    $.ajax({
+                        type: "POST",
+                        url: window.location,
+                        data: data,
+                        success: function(response) {
+                            toast('File renamed successfully');
+                            // Optionally, refresh the file list or update the UI
+                        },
+                        error: function() {
+                            toast('An error occurred while renaming the file.');
+                        }
+                    });
+                }
             }
 
             function rename(e, t) {
@@ -5209,51 +5280,6 @@ function fm_show_header_login()
                 setTimeout(function() {
                     x.className = x.className.replace("show", "");
                 }, 3000);
-            }
-
-            // Save file
-            function edit_save(e, t) {
-                var n = "monaco" == t ? monacoEditor.getValue() : document.getElementById("normal-editor").value;
-                if (typeof n !== 'undefined' && n !== null) {
-                    if (true) {
-                        var data = {
-                            ajax: true,
-                            content: n,
-                            type: 'save',
-                            token: window.csrf
-                        };
-
-                        $.ajax({
-                            type: "POST",
-                            url: window.location,
-                            data: JSON.stringify(data),
-                            contentType: "application/json; charset=utf-8",
-                            success: function(mes) {
-                                toast("Saved Successfully");
-                                window.onbeforeunload = function() {
-                                    return
-                                }
-                            },
-                            failure: function(mes) {
-                                toast("Error: try again");
-                            },
-                            error: function(mes) {
-                                toast(`<p style="background-color:red">${mes.responseText}</p>`);
-                            }
-                        });
-                    } else {
-                        var a = document.createElement("form");
-                        a.setAttribute("method", "POST"), a.setAttribute("action", "");
-                        var o = document.createElement("textarea");
-                        o.setAttribute("type", "textarea"), o.setAttribute("name", "savedata");
-                        let cx = document.createElement("input");
-                        cx.setAttribute("type", "hidden");
-                        cx.setAttribute("name", "token");
-                        cx.setAttribute("value", window.csrf);
-                        var c = document.createTextNode(n);
-                        o.appendChild(c), a.appendChild(o), a.appendChild(cx), document.body.appendChild(a), a.submit()
-                    }
-                }
             }
 
             function show_new_pwd() {
@@ -5528,72 +5554,120 @@ function fm_show_header_login()
             $(document).on('click', function() {
                 $('#context-menu').hide();
             });
+            $(document).ready(function() {
+                // Context menu actions
+                $('#context-menu a').on('click', function(e) {
+                    e.preventDefault();
+                    var action = $(this).data('action');
+                    var contextMenu = $('#context-menu');
+                    var path = contextMenu.data('path');
+                    var p = contextMenu.data('p');
+                    var filename = contextMenu.data('filename');
 
-            // Context menu actions
-            $('#context-menu a').on('click', function(e) {
-                e.preventDefault();
-                var action = $(this).data('action');
-                var contextMenu = $('#context-menu');
-                var path = contextMenu.data('path');
-                var p = contextMenu.data('p');
-                var filename = contextMenu.data('filename');
-
-                // Perform action based on the clicked item
-                switch (action) {
-                    case 'download':
-                        var url = `?p=${p}&dl=${filename}`;
-                        var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
-                        $('body').append(form);
-                        form.submit().remove();
-                        break;
-                    case 'delete':
-                        var deleteUrl = `?p=${p}&del=${filename}`;
-                        confirmDailog(e, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>', filename, deleteUrl);
-                        break;
-                    case 'rename':
-                        rename(p, filename);
-                        break;
-                    case 'new-file':
-                        var newName = prompt('Enter new file name');
-                        if (newName) {
-                            var url = `?p=${p}&newfilename=${encodeURIComponent(newName)}&newfile=file`;
+                    // Perform action based on the clicked item
+                    switch (action) {
+                        case 'download':
+                            var url = `?p=${p}&dl=${filename}`;
                             var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
                             $('body').append(form);
                             form.submit().remove();
-                        }
-                        break;
-                    case 'new-folder':
-                        var newName = prompt('Enter new folder name');
-                        if (newName) {
-                            var url = `?p=${p}&newfilename=${encodeURIComponent(newName)}&newfile=folder`;
-                            var form = $(`<form action="${url}" method="post"><input type="hidden" name="token" value="${window.csrf}"></form>`);
-                            $('body').append(form);
-                            form.submit().remove();
-                        }
-                        break;
-                    case 'copy-path':
-                        var tempInput = document.createElement("input");
-                        tempInput.style = "position: absolute; left: -1000px; top: -1000px";
-                        tempInput.value = "<?php echo FM_ROOT_PATH ?>" + decodeURIComponent(path);
-                        document.body.appendChild(tempInput);
-                        tempInput.select();
-                        document.execCommand("copy");
-                        document.body.removeChild(tempInput);
-                        toast('Path copied to clipboard');
-                        break;
-                    case 'copy-relative-path':
-                        var tempInput = document.createElement("input");
-                        tempInput.style = "position: absolute; left: -1000px; top: -1000px";
-                        tempInput.value = decodeURIComponent(path);
-                        document.body.appendChild(tempInput);
-                        tempInput.select();
-                        document.execCommand("copy");
-                        document.body.removeChild(tempInput);
-                        toast('Relative path copied to clipboard');
-                        break;
-                }
-                $('#context-menu').hide();
-            });
+                            break;
+                        case 'delete':
+                            if (confirm('Are you sure you want to delete ' + filename + '?')) {
+                                var data = {
+                                    ajax: true,
+                                    del: filename,
+                                    p: p,
+                                    token: window.csrf
+                                };
+                                $.ajax({
+                                    type: "POST",
+                                    url: window.location,
+                                    data: data,
+                                    success: function(response) {
+                                        toast('File deleted successfully');
+                                        // Optionally, refresh the file list or update the UI
+                                    },
+                                    error: function() {
+                                        toast('An error occurred while deleting the file.');
+                                    }
+                                });
+                            }
+                            break;
+                        case 'rename':
+                            rename_without_redirect(p, filename);
+                            break;
+                        case 'new-file':
+                            var newName = prompt('Enter new file name');
+                            if (newName) {
+                                var data = {
+                                    ajax: true,
+                                    newfilename: newName,
+                                    newfile: 'file',
+                                    p: p,
+                                    token: window.csrf
+                                };
+                                $.ajax({
+                                    type: "POST",
+                                    url: window.location,
+                                    data: data,
+                                    success: function(response) {
+                                        toast('File created successfully');
+                                        // Optionally, refresh the file list or update the UI
+                                    },
+                                    error: function() {
+                                        toast('An error occurred while creating the file.');
+                                    }
+                                });
+                            }
+                            break;
+                        case 'new-folder':
+                            var newName = prompt('Enter new folder name');
+                            if (newName) {
+                                var data = {
+                                    ajax: true,
+                                    newfilename: newName,
+                                    newfile: 'folder',
+                                    p: p,
+                                    token: window.csrf
+                                };
+                                $.ajax({
+                                    type: "POST",
+                                    url: window.location,
+                                    data: data,
+                                    success: function(response) {
+                                        toast('Folder created successfully');
+                                        // Optionally, refresh the file list or update the UI
+                                    },
+                                    error: function() {
+                                        toast('An error occurred while creating the folder.');
+                                    }
+                                });
+                            }
+                            break;
+                        case 'copy-path':
+                            var tempInput = document.createElement("input");
+                            tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+                            tempInput.value = "<?php echo FM_ROOT_PATH ?>" + decodeURIComponent(path);
+                            document.body.appendChild(tempInput);
+                            tempInput.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(tempInput);
+                            toast('Path copied to clipboard');
+                            break;
+                        case 'copy-relative-path':
+                            var tempInput = document.createElement("input");
+                            tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+                            tempInput.value = decodeURIComponent(path);
+                            document.body.appendChild(tempInput);
+                            tempInput.select();
+                            document.execCommand("copy");
+                            document.body.removeChild(tempInput);
+                            toast('Relative path copied to clipboard');
+                            break;
+                    }
+                    $('#context-menu').hide();
+                });
             });
         </script>
 
@@ -5726,7 +5800,7 @@ function fm_show_header_login()
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item"><a href="#" data-action="download"><i class="fa fa-download"></i> Download</a></li>
                     <li class="list-group-item"><a href="#" data-action="delete"><i class="fa fa-trash"></i> Delete</a></li>
-                    <li class="list-group-item"><a href="#" data-action="rename"><i class="fa fa-pencil"></i> Rename</a></li>
+                    <li class="list-group-item"><a href="#" data-action="rename" onclick="rename_without_redirect('<?php echo fm_enc(addslashes(FM_PATH)) ?>', '<?php echo fm_enc(addslashes($f)) ?>');return false;"><i class="fa fa-pencil"></i> Rename</a></li>
                     <li class="list-group-item"><a href="#" data-action="new-file"><i class="fa fa-file"></i> New File</a></li>
                     <li class="list-group-item"><a href="#" data-action="new-folder"><i class="fa fa-folder"></i> New Folder</a></li>
                     <li class="list-group-item"><a href="#" data-action="copy-path"><i class="fa fa-copy"></i> Copy Path</a></li>
