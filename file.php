@@ -466,6 +466,24 @@ if ((isset($_SESSION[FM_SESSION_ID]['logged'], $auth_users[$_SESSION[FM_SESSION_
         die("Invalid Token.");
     }
 
+    // get_tree : lazy load directories in explorer
+    if (isset($_POST['type']) && $_POST['type'] == "get_tree") {
+        $requested_path = isset($_POST['path']) ? $_POST['path'] : '';
+        $clean_req_path = fm_clean_path($requested_path);
+
+        // Construct the absolute path and verify it is under base root path to prevent directory traversal
+        $abs_path = rtrim(FM_ROOT_PATH . '/' . $clean_req_path, '/');
+
+        // Verify path is actually under root path and is a readable directory
+        if (strpos($abs_path, FM_ROOT_PATH) === 0 && is_dir($abs_path) && is_readable($abs_path)) {
+            $html = fm_generate_explorer_html_shallow($abs_path, FM_ROOT_PATH);
+            echo $html;
+        } else {
+            echo '<li><i class="fa fa-exclamation-triangle"></i> Access denied or invalid path.</li>';
+        }
+        exit();
+    }
+
     //search : get list of files from the current folder
     if (isset($_POST['type']) && $_POST['type'] == "search") {
         $dir = $_POST['path'] == "." ? '' : $_POST['path'];
@@ -2043,7 +2061,7 @@ if (isset($_GET['edit']) && !FM_READONLY) {
         <?php
         echo '<div class="row">';
         echo '<div class="col-md-3" id="file-explorer-container">';
-        echo fm_generate_explorer_html(FM_PATH, FM_ROOT_PATH);
+        echo fm_generate_explorer_html("", FM_ROOT_PATH);
         echo '</div>'; // close col-md-3
         echo '<div class="col-md-9">'; // open col-md-9 for editor main content
 
@@ -2397,26 +2415,23 @@ fm_show_footer();
 // Functions
 
 /**
- * Generates the HTML for the file explorer.
+ * Generates the HTML for the file explorer in a shallow (non-recursive) way.
  * @param string $scan_abs_path The absolute path of the directory to scan.
  * @param string $base_root_path The absolute root path of the file manager (FM_ROOT_PATH).
  * @return string HTML string for the file explorer level.
  */
-function fm_generate_explorer_html_recursive($scan_abs_path, $base_root_path) {
-    $explorer_html = '<ul class="list-unstyled sub-explorer">';
-    // $current_fm_path is relative to $base_root_path for constructing navigation links
+function fm_generate_explorer_html_shallow($scan_abs_path, $base_root_path) {
+    $explorer_html = '';
     $current_fm_path = fm_clean_path(str_replace($base_root_path, '', $scan_abs_path));
 
     if (!is_dir($scan_abs_path) || !is_readable($scan_abs_path)) {
         $explorer_html .= '<li><i class="fa fa-exclamation-triangle"></i> Cannot read: ' . fm_enc(basename($scan_abs_path)) . '</li>';
-        $explorer_html .= '</ul>';
         return $explorer_html;
     }
 
     $items = scandir($scan_abs_path);
     if ($items === false) {
         $explorer_html .= '<li>Failed to scan directory.</li>';
-        $explorer_html .= '</ul>';
         return $explorer_html;
     }
 
@@ -2434,79 +2449,6 @@ function fm_generate_explorer_html_recursive($scan_abs_path, $base_root_path) {
             continue;
         }
 
-        $item_abs_path_for_scan = $scan_abs_path . '/' . $item; // Absolute path for is_dir, recursion etc.
-        $item_fm_path_for_link = fm_clean_path($current_fm_path . '/' . $item); // FM-relative path for navigation links
-
-        if (is_dir($item_abs_path_for_scan)) {
-            $temp_folders[$item] = ['abs_path' => $item_abs_path_for_scan, 'fm_path' => $item_fm_path_for_link];
-        } else {
-            $temp_files[$item] = $item_fm_path_for_link; // Store full FM path for file for icon, and its name for link
-        }
-    }
-    
-    uksort($temp_folders, 'strnatcasecmp');
-    uksort($temp_files, 'strnatcasecmp');
-
-    foreach ($temp_folders as $folder_name => $folder_paths) {
-        $folders_html .= '<li>';
-        $folders_html .= '<span class="folder-toggle"><i class="fa fa-plus-square-o"></i></span> ';
-        $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '" data-p="' . urlencode($folder_paths['fm_path']) . '" data-filename="' . fm_enc($folder_name) . '">' . fm_enc($folder_name) . '</a>';
-        $folders_html .= fm_generate_explorer_html_recursive($folder_paths['abs_path'], $base_root_path);
-        $folders_html .= '</li>';
-    }
-
-    foreach ($temp_files as $file_name => $file_fm_path) {
-        $file_icon = fm_get_file_icon_class($base_root_path . '/' . $file_fm_path);
-        $files_html .= '<li><i class="' . $file_icon . '"></i> ';
-        $files_html .= '<a href="?p=' . urlencode($current_fm_path) . '&edit=' . urlencode($file_name) . '&env=monaco" data-p="' . urlencode($current_fm_path) . '" data-filename="' . fm_enc($file_name) . '">' . fm_enc($file_name) . '</a>';
-        $files_html .= '</li>';
-    }
-    
-    $explorer_html .= $folders_html . $files_html;
-    $explorer_html .= '</ul>';
-    return $explorer_html;
-}
-
-// Wrapper function to initiate the explorer, including parent nav for the top level
-function fm_generate_explorer_html($current_fm_path, $base_root_path) {
-    $output = '<ul class="list-unstyled">';
-    // Link to parent directory for the initial path being viewed in explorer
-    /*if ($current_fm_path !== '' && $current_fm_path !== '/') { // Avoid ".." if already at root
-        $parent_path_fm = fm_get_parent_path($current_fm_path);
-        $output .= '<li><i class="fa fa-level-up"></i> <a href="?p=' . urlencode($parent_path_fm) . (!isset($_GET['edit']) ? '' : '&edit=' .urlencode($_GET['edit'])) . '">..</a></li>';
-    }*/
-     // Actual directory content, initially visible
-    $initial_scan_abs_path = rtrim($base_root_path . '/' . $current_fm_path, '/');
-    $output .= fm_generate_explorer_html_recursive_toplevel($initial_scan_abs_path, $base_root_path);
-    $output .= '</ul>';
-    return $output;
-}
-
-// Modified recursive part that doesn't hide the first level ul
-function fm_generate_explorer_html_recursive_toplevel($scan_abs_path, $base_root_path) {
-    $explorer_html = ''; // Changed from ul to direct li content
-    $current_fm_path = fm_clean_path(str_replace($base_root_path, '', $scan_abs_path));
-
-    if (!is_dir($scan_abs_path) || !is_readable($scan_abs_path)) {
-        $explorer_html .= '<li><i class="fa fa-exclamation-triangle"></i> Cannot read: ' . fm_enc(basename($scan_abs_path)) . '</li>';
-        return $explorer_html; // Return just the li
-    }
-
-    $items = scandir($scan_abs_path);
-    if ($items === false) {
-        $explorer_html .= '<li>Failed to scan directory.</li>';
-        return $explorer_html; // Return just the li
-    }
-
-    $folders_html = '';
-    $files_html = '';
-    $temp_folders = [];
-    $temp_files = [];
-
-    foreach ($items as $item) {
-        if ($item == '.' || $item == '..') continue;
-        if (!FM_SHOW_HIDDEN && substr($item, 0, 1) === '.') continue;
-
         $item_abs_path_for_scan = $scan_abs_path . '/' . $item;
         $item_fm_path_for_link = fm_clean_path($current_fm_path . '/' . $item);
 
@@ -2522,9 +2464,9 @@ function fm_generate_explorer_html_recursive_toplevel($scan_abs_path, $base_root
 
     foreach ($temp_folders as $folder_name => $folder_paths) {
         $folders_html .= '<li>';
-        $folders_html .= '<span class="folder-toggle"><i class="fa fa-plus-square-o"></i></span> ';
+        $folders_html .= '<span class="folder-toggle" data-loaded="false" data-path="' . fm_enc($folder_paths['fm_path']) . '"><i class="fa fa-plus-square-o"></i></span> ';
         $folders_html .= '<i class="fa fa-folder"></i> <a href="?p=' . urlencode($folder_paths['fm_path']) . '" data-p="' . urlencode($folder_paths['fm_path']) . '" data-filename="' . fm_enc($folder_name) . '">' . fm_enc($folder_name) . '</a>';
-        $folders_html .= fm_generate_explorer_html_recursive($folder_paths['abs_path'], $base_root_path); // This will return a sub-ul
+        $folders_html .= '<ul class="list-unstyled sub-explorer" style="display: none;"></ul>';
         $folders_html .= '</li>';
     }
 
@@ -2535,8 +2477,21 @@ function fm_generate_explorer_html_recursive_toplevel($scan_abs_path, $base_root
         $files_html .= '</li>';
     }
     
-    $explorer_html .= $folders_html . $files_html;
-    return $explorer_html; // Return combined LIs
+    if (empty($temp_folders) && empty($temp_files)) {
+        $explorer_html .= '<li><em class="text-muted">' . lng('Folder is empty') . '</em></li>';
+    } else {
+        $explorer_html .= $folders_html . $files_html;
+    }
+    return $explorer_html;
+}
+
+// Wrapper function to initiate the explorer, including parent nav for the top level
+function fm_generate_explorer_html($current_fm_path, $base_root_path) {
+    $output = '<ul class="list-unstyled">';
+    $initial_scan_abs_path = rtrim($base_root_path . '/' . $current_fm_path, '/');
+    $output .= fm_generate_explorer_html_shallow($initial_scan_abs_path, $base_root_path);
+    $output .= '</ul>';
+    return $output;
 }
 
 
@@ -5515,19 +5470,56 @@ function fm_show_header_login()
                     $(target).removeClass('hidden');
                 });
 
-            // File Explorer Toggle
+            // File Explorer Toggle (Lazy loaded)
             $(document).on('click', '.folder-toggle', function(e) {
                 e.preventDefault();
-                $(this).nextAll('ul.sub-explorer:first').slideToggle();
-                var $icon = $(this).find('i.fa');
-                if ($icon.hasClass('fa-plus-square-o')) {
-                    $icon.removeClass('fa-plus-square-o').addClass('fa-minus-square-o');
-                } else if ($icon.hasClass('fa-minus-square-o')) {
-                    $icon.removeClass('fa-minus-square-o').addClass('fa-plus-square-o');
-                } else if ($icon.hasClass('fa-caret-right')) {
-                    $icon.removeClass('fa-caret-right').addClass('fa-caret-down');
-                } else if ($icon.hasClass('fa-caret-down')) {
-                    $icon.removeClass('fa-caret-down').addClass('fa-caret-right');
+                var $this = $(this);
+                var $subExplorer = $this.nextAll('ul.sub-explorer:first');
+                var $icon = $this.find('i.fa');
+                var isLoaded = $this.attr('data-loaded') === 'true';
+                var path = $this.attr('data-path');
+
+                if (!isLoaded && path) {
+                    // Check if read-only user
+                    <?php if (FM_READONLY): ?>
+                        toast("Access denied: read-only user.");
+                        return;
+                    <?php endif; ?>
+
+                    // Show spinner / loader indicator
+                    $icon.removeClass('fa-plus-square-o').addClass('fa-spinner fa-spin');
+
+                    $.ajax({
+                        type: "POST",
+                        url: window.location.pathname + window.location.search,
+                        data: {
+                            ajax: true,
+                            type: 'get_tree',
+                            path: path,
+                            token: window.csrf
+                        },
+                        success: function(html) {
+                            $subExplorer.html(html);
+                            $this.attr('data-loaded', 'true');
+                            $icon.removeClass('fa-spinner fa-spin').addClass('fa-minus-square-o');
+                            $subExplorer.slideDown();
+                        },
+                        error: function() {
+                            $icon.removeClass('fa-spinner fa-spin').addClass('fa-plus-square-o');
+                            toast("Failed to load folder contents.");
+                        }
+                    });
+                } else {
+                    $subExplorer.slideToggle();
+                    if ($icon.hasClass('fa-plus-square-o')) {
+                        $icon.removeClass('fa-plus-square-o').addClass('fa-minus-square-o');
+                    } else if ($icon.hasClass('fa-minus-square-o')) {
+                        $icon.removeClass('fa-minus-square-o').addClass('fa-plus-square-o');
+                    } else if ($icon.hasClass('fa-caret-right')) {
+                        $icon.removeClass('fa-caret-right').addClass('fa-caret-down');
+                    } else if ($icon.hasClass('fa-caret-down')) {
+                        $icon.removeClass('fa-caret-down').addClass('fa-caret-right');
+                    }
                 }
             });
 
